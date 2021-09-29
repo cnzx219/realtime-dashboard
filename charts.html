@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html style="height: 100%">
+    <head>
+        <meta charset="utf-8">
+    </head>
+    <body style="height: 100%; margin: 0">
+        <div id="container" style="height: 100%"></div>
+
+        <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.1.2/echarts.min.js"></script>
+
+        <script type="text/javascript">
+var dom = document.getElementById("container");
+var myChart = echarts.init(dom);
+var app = {};
+var option;
+let data = [];
+
+function makeInitData(size) {
+    const now = parseInt(new Date().getTime() / 1000);
+    let currentTs = now;
+    for (let i = 0; i < size; i++) {
+        const currentDate = new Date(currentTs * 1000);
+        const item = {
+            //name: [currentDate.getHours(), currentDate.getMinutes(), currentDate.getSeconds()].join(':') ,
+            name: currentDate.toString(),
+            // value: [currentTs, 500],
+            value: [currentDate.getTime(), 500.1],
+        };
+        data.unshift(item);
+        currentTs -= 1;
+    }
+}
+makeInitData(1000);
+
+option = {
+  title: {
+    text: 'Realtime Chart'
+  },
+  tooltip: {
+    trigger: 'axis',
+    axisPointer: {
+      animation: false
+    }
+  },
+  xAxis: {
+    type: 'time',
+    splitLine: {
+      show: false
+    }
+  },
+  yAxis: {
+    type: 'value',
+    boundaryGap: [0, '100%'],
+    splitLine: {
+      show: false
+    }
+  },
+  series: [
+    {
+      name: 'Data',
+      type: 'line',
+      showSymbol: false,
+      data: data
+    }
+  ]
+};
+
+var ws = new WebSocket('ws://localhost:3000/ws');
+ws.onopen = function () {
+    ws.send('the request from client');
+};
+ws.onmessage = function (e) {
+    const payload = JSON.parse(e.data);
+    const currentDate = new Date(payload['myChart'][0] * 1000);
+
+    data.shift();
+    data.push({
+        name: currentDate.toString() ,
+        value: [currentDate.getTime(), payload['myChart'][1]],
+    });
+
+    myChart.setOption({
+        series: [
+            {
+                data: data
+            }
+        ]
+    });
+};
+
+if (option && typeof option === 'object') {
+    myChart.setOption(option);
+}
+
+        </script>
+    </body>
+</html>
+    

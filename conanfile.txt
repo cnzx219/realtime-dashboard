@@ -1,0 +1,8 @@
+[requires]
+uwebsockets/19.3.0
+hiredis/1.0.0
+
+[generators]
+cmake
+
+[options]

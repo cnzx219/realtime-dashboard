@@ -1,0 +1,16 @@
+cmake_minimum_required(VERSION 3.20)
+project(realtime_dashboard_backend)
+set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR})
+set(CMAKE_MODULE_PATH2 ${CMAKE_BINARY_DIR})
+
+if(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+    include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+    conan_basic_setup()
+else()
+    message(WARNING "The file conanbuildinfo.cmake doesn't exist, you have to run conan install first")
+endif()
+
+set(CMAKE_CXX_STANDARD 17)
+set(SOURCE_FILES main.cpp usocket_internal.h)
+add_executable(realtime_dashboard_backend ${SOURCE_FILES})
+target_link_libraries(realtime_dashboard_backend ${CONAN_LIBS})
