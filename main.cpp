@@ -10,20 +10,76 @@
 
 uWS::App *globalApp;
 std::string charts_html;
+redisAsyncContext *globalRedisContext;
 
-void onMessage(redisAsyncContext *c, void *reply, void *privdata) {
-    auto *r = static_cast<redisReply *>(reply);
+void onMessage(redisAsyncContext *c, void *replyPtr, void *privdata) {
+    auto *r = static_cast<redisReply *>(replyPtr);
+    redisReply *reply = r;
+    redisReply *retReply;
     if (reply == nullptr) return;
 
-    if (r->type == REDIS_REPLY_ARRAY) {
-        if (r->element[2]) {
-            if (r->element[2]->type == 1) {
-                globalApp->publish("broadcast", std::string_view(r->element[2]->str, r->element[2]->len), uWS::OpCode::TEXT, false);
+    if ((reply == NULL) || (c->err)) {
+        std::cout << "error: [ctl] redisCommand reply is error, " << c->errstr << std::endl;
+        if (reply) {
+//            freeReplyObject(reply);
+        }
+        redisAsyncCommand(c, onMessage, nullptr, "XREAD block 10000 streams %s $", "teststream");
+        return;
+    }
+
+    if (reply->type == REDIS_REPLY_ARRAY && reply->elements > 0) {
+        retReply = reply->element[0];
+        if (retReply->type == REDIS_REPLY_ARRAY && retReply -> elements > 0) {
+            //std::cout << retReply->element[0]->type << " " << retReply->element[0]->str << std::endl;  // stream name
+
+            retReply = retReply->element[1]->element[0];
+            if (retReply->type == REDIS_REPLY_ARRAY && retReply -> elements > 0) {
+                //std::cout << retReply->element[0]->type << " " << retReply->element[0]->str << std::endl;  // id name
+
+                retReply = retReply->element[1];
+                if (retReply->type == REDIS_REPLY_ARRAY && retReply -> elements > 0) {
+                    //std::cout << retReply->element[0]->type << " " << retReply->element[0]->str << std::endl;  // key 1
+                    //std::cout << retReply->element[1]->type << " " << retReply->element[1]->str << std::endl;  // value 1
+                    globalApp->publish("broadcast", std::string_view(retReply->element[1]->str, retReply->element[1]->len), uWS::OpCode::TEXT, false);
+                }
             }
-//            std::cout << r->element[2]->type <<std::endl;
-//            for (int j = 0; j < r->elements; j++) {
-//                printf("%u) %s\n", j, r->element[j]->str);
-//            }
+        }
+    }
+//    freeReplyObject(reply);
+
+    // loop
+    redisAsyncCommand(c, onMessage, nullptr, "XREAD block 10000 streams %s $", "teststream");
+}
+
+void onColdStartup(redisAsyncContext *c, void *replyPtr, void *privdata) {
+    auto *r = static_cast<redisReply *>(replyPtr);
+    redisReply *reply = r;
+    redisReply *retReply;
+    if (reply == nullptr) return;
+
+    if ((reply == NULL) || (c->err)) {
+        std::cout << "error: [ctl] redisCommand reply is error, " << c->errstr << std::endl;
+        if (reply) {
+//            freeReplyObject(reply);
+        }
+        return;
+    }
+
+    if (reply->type == REDIS_REPLY_ARRAY && reply->elements > 0) {
+        retReply = reply->element[0];
+        if (retReply->type == REDIS_REPLY_ARRAY && retReply -> elements > 0) {
+            //std::cout << retReply->element[0]->type << " " << retReply->element[0]->str << std::endl;  // stream name
+
+            retReply = retReply->element[1]->element[0];
+            if (retReply->type == REDIS_REPLY_ARRAY && retReply -> elements > 0) {
+                //std::cout << retReply->element[0]->type << " " << retReply->element[0]->str << std::endl;  // id name
+
+                retReply = retReply->element[1];
+                if (retReply->type == REDIS_REPLY_ARRAY && retReply -> elements > 0) {
+                    std::cout << retReply->element[0]->type << " " << retReply->element[0]->str << std::endl;  // key 1
+                    std::cout << retReply->element[1]->type << " " << retReply->element[1]->str << std::endl;  // value 1
+                }
+            }
         }
     }
 }
@@ -31,6 +87,15 @@ void onMessage(redisAsyncContext *c, void *reply, void *privdata) {
 int main() {
     signal(SIGPIPE, SIG_IGN);
 
+    // connect redis
+    redisAsyncContext *c = redisAsyncConnect("127.0.0.1", 6379);
+    globalRedisContext = c;
+    if (c->err) {
+        std::cout << "connect redis error: " << c->errstr << std::endl;
+        exit(1);
+    }
+
+    // buffer chart page
     std::filesystem::path cwd = std::filesystem::current_path() / "../../charts.html";
     std::ifstream inFile;
     inFile.open(cwd.string()); //open the input file
@@ -69,8 +134,10 @@ int main() {
                 .upgrade = nullptr,
                 .open = [](auto *ws) {
                     std::cout << "open" << std::endl;
-                    ws->subscribe("broadcast");
+
+                    //ws->subscribe("broadcast");
                     /* Open event here, you may access ws->getUserData() which points to a PerSocketData struct */
+                    redisAsyncCommand(globalRedisContext, onMessage, ws, "XREVRANGE %s + - COUNT %s", "teststream", "100");
                 },
                 .message = [](auto *ws, std::string_view message, uWS::OpCode opCode) {
                     //ws->send(message, opCode, true);
@@ -94,17 +161,14 @@ int main() {
                 }
             });
 
-    // connect redis
-    redisAsyncContext *c = redisAsyncConnect("127.0.0.1", 6379);
-    if (c->err) {
-        std::cout << "error: " << c->errstr << std::endl;
-        return -1;
-    }
+    // hack libuv loop
     auto *us_loop = (struct us_loop_t_copy *) uWS::Loop::get();
-
     // install redis async client to libuv
     redisLibuvAttach(c, us_loop->uv_loop);
-    redisAsyncCommand(c, onMessage, nullptr, "SUBSCRIBE testtopic");
+
+    // start message watcher
+    //redisAsyncCommand(c, onMessage, nullptr, "XREAD block 10000 streams %s $", "teststream");
+    redisAsyncCommand(c, onColdStartup, nullptr, "XREVRANGE %s + - COUNT %s", "teststream", "2");
 
     globalApp = &app;
     app.run();

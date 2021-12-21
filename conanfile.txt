@@ -1,6 +1,7 @@
 [requires]
 uwebsockets/19.3.0
 hiredis/1.0.0
+nlohmann_json/3.10.4
 
 [generators]
 cmake
