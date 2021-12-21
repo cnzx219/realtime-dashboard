@@ -30,7 +30,7 @@ function makeInitData(size) {
         currentTs -= 1;
     }
 }
-makeInitData(100);
+// makeInitData(100);
 
 option = {
   title: {
@@ -65,27 +65,49 @@ option = {
   ]
 };
 
+const chartName = 'myChart';
 var ws = new WebSocket('ws://localhost:3000/ws');
 ws.onopen = function () {
     ws.send('the request from client');
 };
 ws.onmessage = function (e) {
     const payload = JSON.parse(e.data);
-    const currentDate = new Date(payload['myChart'][0] * 1000);
-
-    data.shift();
-    data.push({
-        name: currentDate.toString() ,
-        value: [currentDate.getTime(), payload['myChart'][1]],
-    });
-
-    myChart.setOption({
-        series: [
-            {
-                data: data
+    if (payload.type) {
+        if (payload.type === 'init') {
+            for (const item of payload.data) {
+                const currentDate = new Date(item[chartName][0] * 1000);
+                data.unshift({
+                    name: currentDate.toString() ,
+                    value: [currentDate.getTime(), item[chartName][1]],
+                });
             }
-        ]
-    });
+
+            myChart.setOption({
+                series: [
+                    {
+                        data: data
+                    }
+                ]
+            });
+        }
+    } else {
+        const currentDate = new Date(payload[chartName][0] * 1000);
+
+        data.shift();
+        data.push({
+            name: currentDate.toString() ,
+            value: [currentDate.getTime(), payload[chartName][1]],
+        });
+
+        myChart.setOption({
+            series: [
+                {
+                    data: data
+                }
+            ]
+        });
+    }
+
 };
 
 if (option && typeof option === 'object') {

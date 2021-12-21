@@ -20,3 +20,4 @@ conan install . -s build_type=Release --install-folder=cmake-build-release
 - [x] Cache history data.
 - [ ] Simple authentication.
 - [ ] Charts configurable. (Such as layouts, types, complex)
+- [ ] Easy to use and copy

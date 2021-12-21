@@ -68,6 +68,7 @@ void onColdStartup(redisAsyncContext *c, void *replyPtr, void *privdata) {
     if (reply->elements > 0) {
         std::ostringstream stream;
         stream << R"({"type":"init","data":[)";
+        int lastIndex = reply->elements - 1;
         for (int i = 0; i < reply->elements; i++) {
             //std::cout << reply->element[i]->type << " " << reply->element[i]->elements << std::endl;
             retReply = reply->element[i];
@@ -78,7 +79,10 @@ void onColdStartup(redisAsyncContext *c, void *replyPtr, void *privdata) {
                 if (retReply->type == REDIS_REPLY_ARRAY && retReply->elements > 0) {
                     //std::cout << retReply->element[0]->type << " " << retReply->element[0]->str << std::endl;  // key 1
                     //std::cout << retReply->element[1]->type << " " << retReply->element[1]->str << std::endl;  // value 1
-                    stream << retReply->element[1]->str << ',';
+                    stream << retReply->element[1]->str;
+                    if (i < lastIndex) {
+                        stream << ',';
+                    }
                 }
             }
         }
@@ -142,7 +146,7 @@ int main() {
 
                     //ws->subscribe("broadcast");
                     /* Open event here, you may access ws->getUserData() which points to a PerSocketData struct */
-                    redisAsyncCommand(globalRedisContext, onColdStartup, ws, "XREVRANGE %s + - COUNT %s", "teststream", "5");
+                    redisAsyncCommand(globalRedisContext, onColdStartup, ws, "XREVRANGE %s + - COUNT %s", "teststream", "50");
                 },
                 .message = [](auto *ws, std::string_view message, uWS::OpCode opCode) {
                     //ws->send(message, opCode, true);
