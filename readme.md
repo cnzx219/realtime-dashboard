@@ -17,7 +17,6 @@ conan install . -s build_type=Release --install-folder=cmake-build-release
 ## TODO
 
 - [x] Simple demo, broadcast subscribe messages from redis to every websocket.
-- [ ] Cache history data.
+- [x] Cache history data.
 - [ ] Simple authentication.
 - [ ] Charts configurable. (Such as layouts, types, complex)
-- [ ] Rich data source.
