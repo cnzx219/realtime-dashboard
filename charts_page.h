@@ -1,3 +1,11 @@
+//
+// Created by Hiro on 2021/12/22.
+//
+
+#ifndef REALTIME_DASHBOARD_BACKEND_CHARTS_PAGE_H
+#define REALTIME_DASHBOARD_BACKEND_CHARTS_PAGE_H
+
+#define CHARTS_PAGE_HTML_SOURCE R"(
 <!DOCTYPE html>
 <html style="height: 100%">
     <head>
@@ -14,23 +22,6 @@ var myChart = echarts.init(dom);
 var app = {};
 var option;
 let data = [];
-
-function makeInitData(size) {
-    const now = parseInt(new Date().getTime() / 1000);
-    let currentTs = now;
-    for (let i = 0; i < size; i++) {
-        const currentDate = new Date(currentTs * 1000);
-        const item = {
-            //name: [currentDate.getHours(), currentDate.getMinutes(), currentDate.getSeconds()].join(':') ,
-            name: currentDate.toString(),
-            // value: [currentTs, 500],
-            value: [currentDate.getTime(), 500.1],
-        };
-        data.unshift(item);
-        currentTs -= 1;
-    }
-}
-// makeInitData(100);
 
 option = {
   title: {
@@ -67,6 +58,7 @@ option = {
 
 const chartName = 'myChart';
 var ws = new WebSocket('ws://localhost:3000/ws');
+var initlen = 50;
 ws.onopen = function () {
     ws.send('the request from client');
 };
@@ -74,6 +66,7 @@ ws.onmessage = function (e) {
     const payload = JSON.parse(e.data);
     if (payload.type) {
         if (payload.type === 'init') {
+            initlen = payload.initlen;
             for (const item of payload.data) {
                 const currentDate = new Date(item[chartName][0] * 1000);
                 data.unshift({
@@ -93,11 +86,13 @@ ws.onmessage = function (e) {
     } else {
         const currentDate = new Date(payload[chartName][0] * 1000);
 
-        data.shift();
         data.push({
             name: currentDate.toString() ,
             value: [currentDate.getTime(), payload[chartName][1]],
         });
+        if (data.length > initlen) {
+            data.shift();
+        }
 
         myChart.setOption({
             series: [
@@ -117,4 +112,6 @@ if (option && typeof option === 'object') {
         </script>
     </body>
 </html>
-    
+)"
+
+#endif //REALTIME_DASHBOARD_BACKEND_CHARTS_PAGE_H

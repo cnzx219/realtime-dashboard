@@ -2,6 +2,7 @@
 uwebsockets/19.3.0
 hiredis/1.0.0
 nlohmann_json/3.10.4
+cli11/2.1.1
 
 [generators]
 cmake

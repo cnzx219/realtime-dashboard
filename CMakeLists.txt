@@ -11,6 +11,6 @@ else()
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
-set(SOURCE_FILES main.cpp usocket_internal.h)
+set(SOURCE_FILES main.cpp usocket_internal.h charts_page.h)
 add_executable(realtime_dashboard_backend ${SOURCE_FILES})
 target_link_libraries(realtime_dashboard_backend ${CONAN_LIBS})
